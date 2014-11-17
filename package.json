@@ -1,0 +1,22 @@
+{
+  "name": "websocket-test",
+  "version": "0.0.0",
+  "description": "websocket npm example",
+  "private": true,
+  "main": "webclient-ex.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "repo"
+  },
+  "keywords": [
+    "websocket"
+  ],
+  "author": "LightSpeedC",
+  "license": "MIT",
+  "devDependencies": {
+    "websocket": ">=1.0.10"
+  }
+}
