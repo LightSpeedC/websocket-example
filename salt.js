@@ -14,8 +14,7 @@
   w.$ = $;
   function $(selector) {
     var el = (d[methods[selector[0]]](selector.slice(1)));
-    return ((el.length < 2) ? el[0]: el);
-  }
+    return ((el.length < 2) ? el[0]: el); }
 
   // probably the most useful and allows $('#iddiv').find('.inside')
   // $().find()
