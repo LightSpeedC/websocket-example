@@ -147,13 +147,49 @@
 <script>
   var $container = $('#container');
   _log('#container loaded');
-  window.WebSocket && _log('window.WebSocket ');
-  window.MozWebSocket && _log('window.MozWebSocket ');
 
-  if (!window.WebSocket && window.MozWebSocket)
-    window.WebSocket = window.MozWebSocket;
+  function newXHR(url, cb) {
+    _log('xhr url: ' + url);
+    var xhr = function () {
+      try { return new XMLHttpRequest(); } catch (e) {}
+      try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
+      try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
+      try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
+      return null;
+    } (); // xhr
+    var que = [];
+    _log('xhr.readyState: ' + xhr.readyState + ', xhr.status: ' + xhr.status);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState == 4) { // DONE
+        if (xhr.status == 200) cb(null, xhr.responseText);
+        else cb(xhr.status);
+        xhr.readyState = 0;
+        next();
+      }
+    };
+    xhr.get  = function () { que.push(['GET',  url]); next(); };
+    xhr.post = function (data) { que.push(['POST', url, data]); next(); };
+    return xhr;
+    function next() {
+      if (xhr.readyState !== 0) return;
+      var el = que.shift();
+      if (el) { xhr.open(el[0], el[1]); xhr.send(el[2]); }
+    }
+  };
 
-  var wsurl = "ws://" + location.host + "/ws/";
+  var xhr = newXHR(location.protocol + '//' + location.host + '/xhr/', function (err, data) {
+    try {
+      _log('xhr res data: ' + data);
+      var obj = JSON.parse(data);
+      switch (obj.msg) {
+        case 'id': break;
+      }
+    } catch (e) {}
+  });
+  //xhr.setRequestHeader('Content-Type' , 'text/plain');
+  xhr.post('{"msg":"conn"}');
+
+  var wsurl = 'ws://' + location.host + '/ws/';
   try {
     _log('new WebSocket() start');
     var ws = new WebSocket(wsurl, 'echo-protocol');
@@ -173,7 +209,7 @@
     // ws.close();
   } catch (e) {
     //alert(e + '');
-    document.write('<font color="red"><h3>' + e + '</h3>\n<pre>' + e.stack + '</pre></font>\n');
+    document.write('<font color="red"><h3>' + e + '</h3></font>\n');
   }
 
   _log('end of index.html');
