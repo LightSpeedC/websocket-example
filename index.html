@@ -1,54 +1,84 @@
 <!DOCTYPE html>
+<meta charset="utf-8">
 <script>
-  var startTime = Date.now();
-  function ms() { return (Date.now() - startTime) + ' ms'; }
+  (function (w) {
+    var cur = Date.now();
+    function _msec() {
+      var prev = cur; cur = Date.now();
+      return ('     ' + (cur - prev)).slice(-6) + ' msec. ';
+    }
+
+    var msgs = [];
+    function _log(msg) {
+      msgs.push(msg = _msec() + msg);
+      if (typeof $container === 'undefined')
+        return console.log(msg);
+      while (msg = msgs.shift()) {
+        //var div = document.createElement('div');
+        //div.appendChild(document.createTextNode(msg));
+        //$container.appendChild(div);
+        $container.innerHTML += msg + '\n';
+      }
+    }
+    w._log = _log;
+  })(window);
+
+  _log('start');
 </script>
 
 <h1>index.html インデックス</h1>
 
-<div id="container"></div>
+<pre id="container"></pre>
 
+<script>_log('before salt.js');</script>
+
+<!--script src="salt.js"></script-->
 <script>
+(function (w, d) {
+  'use strict';
+
+  var methods = {
+      '#': 'getElementById',
+      '.': 'getElementsByClassName',
+      '@': 'getElementsByName',
+      '=': 'getElementsByTagName',
+      '*': 'querySelectorAll'
+  };
+
   // https://github.com/james2doyle/saltjs
   // *! Salt.js DOM Selector Lib. By @james2doyle
-  window.$ = function () {
-    var methods = {
-        '#': 'getElementById',
-        '.': 'getElementsByClassName',
-        '@': 'getElementsByName',
-        '=': 'getElementsByTagName',
-        '*': 'querySelectorAll'
-    };
-    return function (selector) {
-      var el = (document[methods[selector[0]]](selector.slice(1)));
-      return ((el.length < 2) ? el[0]: el);
-    };
-  } ();
+  w.$ = $;
+  function $(selector) {
+    var el = (d[methods[selector[0]]](selector.slice(1)));
+    return ((el.length < 2) ? el[0]: el); }
 
   // probably the most useful and allows $('#iddiv').find('.inside')
-  window.Element.prototype.find = function(selector) {
+  // $().find()
+  w.Element.prototype.find = function find(selector) {
     return $(selector, this); };
 
   // doing a find in a NodeList doesnt really work. I had a function that
   // would look inside and get the element but it was pretty big and
   // required recusive searching inside NodeLists. So I would suggest just
   // using a '*' selection method
-  window.NodeList.prototype.find = function find(elem) {
+  // $().find()
+  w.NodeList.prototype.find = function find(elem) {
     console.error('You cannot find in a NodeList. Just use $(*selector %s)', elem);
     return this; };
 
   // another useful one for doing $('.inside').each()
-  window.NodeList.prototype.each = Array.prototype.forEach;
+  // $().each(function(el){})
+  w.NodeList.prototype.each = Array.prototype.forEach;
 
   // $().attr('prop', 'value') support
-  window.Element.prototype.attr = function(name, value) {
+  w.Element.prototype.attr = function attr(name, value) {
     if(value) {
       this.setAttribute(name, value);
       return this;
     } else {
       return this.getAttribute(name);
     } };
-  window.NodeList.prototype.attr = function(name, value) {
+  w.NodeList.prototype.attr = function attr(name, value) {
     this.each(function(el) {
       if(value) {
         el.setAttribute(name, value);
@@ -58,14 +88,14 @@
     }); return this; };
 
   // $().css('prop', 'value') support
-  window.Element.prototype.css = function(prop, value) {
+  w.Element.prototype.css = function css(prop, value) {
     if (value) { this.style[prop] = value; return this; }
     else { return this.style[prop]; } };
-  window.NodeList.prototype.css = function(prop, value) {
+  w.NodeList.prototype.css = function css(prop, value) {
     this.each(function(el) { el.css(prop, value); }); return this; };
 
   // $().on('event', function(el){});
-  window.Element.prototype.on = function(eventType, callback) {
+  w.Element.prototype.on = function on(eventType, callback) {
     eventType = eventType.split(' ');
     eventType.forEach(function(ev) {
       this.addEventListener(ev, callback);
@@ -73,78 +103,78 @@
     //for (var i = 0; i < eventType.length; i++) {
     //  this.addEventListener(eventType[i], callback);
     //} return this; };
-  window.NodeList.prototype.on = function(eventType, callback){
+  w.NodeList.prototype.on = function on(eventType, callback){
     this.each(function(el){
       el.on(eventType, callback);
     }); return this; };
 
   // $().addClass('name');
-  window.NodeList.prototype.addClass = function(name){
+  w.NodeList.prototype.addClass = function addClass(name){
     this.each(function(el) {
       el.classList.add(name);
     }); return this; };
-  window.Element.prototype.addClass = function(name) {
+  w.Element.prototype.addClass = function addClass(name) {
     this.classList.add(name); return this; };
 
   // $().removeClass('name');
-  window.NodeList.prototype.removeClass = function(name){
+  w.NodeList.prototype.removeClass = function removeClass(name){
     this.each(function(el) {
       el.classList.remove(name);
     }); return this; };
-  window.Element.prototype.removeClass = function(name) {
-    this.classList.remove(name); // add->remove???
+  w.Element.prototype.removeClass = function removeClass(name) {
+    this.classList.remove(name);
     return this; };
+
   // $().hasClass(name)
-  window.Element.prototype.hasClass = function(name) {
+  w.Element.prototype.hasClass = function hasClass(name) {
     // contains? how annoying!
     return this.classList.contains(name); };
+
   // $().first()
-  window.NodeList.prototype.first = function() {
+  w.NodeList.prototype.first = function first() {
     // if this is more than one item return the first
     return (this.length < 2) ? this : this[0]; };
+
   // $().last()
-  window.NodeList.prototype.last = function() {
+  w.NodeList.prototype.last = function last() {
     // if there are many items, return the last
     return (this.length > 1) ? this[this.length - 1] : this; };
+})(window, document);
+</script>
 
+<script>_log('before main script');</script>
+
+<script>
   var $container = $('#container');
-  print(ms() + ': #container loaded');
-  window.WebSocket && print(ms() + ': window.WebSocket ');
-  window.MozWebSocket && print(ms() + ': window.MozWebSocket ');
+  _log('#container loaded');
+  window.WebSocket && _log('window.WebSocket ');
+  window.MozWebSocket && _log('window.MozWebSocket ');
 
   if (!window.WebSocket && window.MozWebSocket)
     window.WebSocket = window.MozWebSocket;
 
   var wsurl = "ws://" + location.host + "/ws/";
   try {
-    print(ms() + ': new WebSocket() start');
+    _log('new WebSocket() start');
     var ws = new WebSocket(wsurl, 'echo-protocol');
-    print(ms() + ': new WebSocket() complete');
+    _log('new WebSocket() complete');
     ws.onopen = function () {
-      print(ms() + ': onopen!');
-      ws.send(ms() + ': message');
-      setTimeout(function () { ws.send(ms() + ': message 1'); }, 30);
-      setTimeout(function () { ws.send(ms() + ': message 2'); }, 60);
-      setTimeout(function () { ws.send(ms() + ': message 3'); }, 90);
+      _log('onopen!');
+      ws.send('message');
+      setTimeout(function () { _log('send 1'); ws.send('message 1'); }, 30);
+      setTimeout(function () { _log('send 2'); ws.send('message 2'); }, 60);
+      setTimeout(function () { _log('send 3'); ws.send('message 3'); }, 90);
     };
     ws.onmessage = function (event) {
-      print(ms() + ': event.data: ' + event.data);
+      _log('event.data: ' + event.data);
     };
-    ws.onclose = function () { print(ms() + ': closed'); };
-    ws.onerror = function () { print(ms() + ': error'); };
+    ws.onclose = function () { _log('closed'); };
+    ws.onerror = function () { _log('error'); };
     // ws.close();
   } catch (e) {
     //alert(e + '');
     document.write('<font color="red"><h3>' + e + '</h3>\n<pre>' + e.stack + '</pre></font>\n');
   }
 
-  function print(msg) {
-    if (!$container) return console.log(msg);
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(msg));
-    $container.appendChild(div);
-    //$container.insertBefore(div);
-  }
-
-  print(ms() + ': end of index.html');
+  _log('end of index.html');
 </script>
