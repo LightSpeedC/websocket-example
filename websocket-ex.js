@@ -7,18 +7,9 @@ var fs = require('fs');
 var http = require('http');
 var util = require('util');
 var path = require('path');
-
-// custom console.log
-function customLogger(log) {
-  return function () {
-    log('%s %s', new Date().toLocaleTimeString(), util.format.apply(util, arguments));
-  };
-}
-console.log = customLogger(console.log);
-console.info = customLogger(console.info);
-console.warn = customLogger(console.warn);
-console.debug = customLogger(console.debug);
-console.error = customLogger(console.error);
+var LogManager = require('log-manager');
+LogManager.setLevel('trace');
+var log = LogManager.getLogger();
 
 // config.txt
 var config = eval('(' + fs.readFileSync('./config.txt') + ')');
@@ -27,8 +18,11 @@ var port = config.port;
 // mime types
 var mimeTypes = eval('(' + fs.readFileSync('./mime-types.txt') + ')');
 
+var pid = process.pid;
+
 // server
 var server = http.createServer(function (req, res) {
+  var socket = req.socket || req.connection;
   var startTime = Date.now();
   var loc = req.url === '/' ? 'index.html' : req.url;
   var ext = loc.slice(loc.lastIndexOf('.')).slice(1) || 'txt';
@@ -38,7 +32,7 @@ var server = http.createServer(function (req, res) {
   res.setHeader('Cache-Control', 'max-age=60');
   fs.stat(fileName, function (err, stats) {
     if (err) {
-      var log = console.warn;
+      var logger = log.warn;
       res.statusCode = 404;
       if (type.slice(0, 4) === 'text')
         res.end('File not found');
@@ -46,11 +40,11 @@ var server = http.createServer(function (req, res) {
         res.end();
     }
     else {
-      var log = console.log;
+      var logger = log.info;
       res.statusCode = 200;
       fs.createReadStream(fileName).pipe(res);
     }
-    log('%s: %d ms\t%s %s', res.statusCode,
+    logger.call(log, '%s: %d ms\t%s %s', res.statusCode,
         Date.now() - startTime, req.method, req.url);
   }); // fs.stat
 }); // http.createServer
@@ -58,9 +52,13 @@ var server = http.createServer(function (req, res) {
 //server.on('upgrade', 
 
 server.listen(port, function () {
-  console.log('Server running at http://localhost:%d', port);
+  log.info('Server running at http://localhost:%d', port);
 });
 
+var socketNo = 0;
+server.on('connection', function (socket) {
+  socket.$socketNo = pid + '#' + (++socketNo);
+});
 
 
 var WebSocketServer = require('websocket').server;
@@ -81,30 +79,32 @@ function originIsAllowed(origin) {
 }
 
 wsServer.on('request', function(request) {
+    var socket = request.socket || request.connection;
+    log.debug('$socketNo: ' + socket.$socketNo);
     if (!originIsAllowed(request.origin)) {
       // Make sure we only accept requests from an allowed origin
       request.reject();
-      console.log('Connection from origin ' + request.origin + ' rejected.');
+      log.trace('Connection from origin ' + request.origin + ' rejected.');
       return;
     }
 
     var connection = request.accept('echo-protocol', request.origin);
-    console.log('Connection accepted.');
+    log.debug('Connection accepted.');
     connection.on('message', function(message) {
         if (message.type === 'utf8') {
-            console.log('Received Message: ' + message.utf8Data);
+            log.trace('Received Message: ' + message.utf8Data);
             connection.sendUTF(message.utf8Data);
         }
         else if (message.type === 'binary') {
-            console.log('Received Binary Message of ' + message.binaryData.length + ' bytes');
+            log.trace('Received Binary Message of ' + message.binaryData.length + ' bytes');
             connection.sendBytes(message.binaryData);
         }
     });
     connection.on('close', function(reasonCode, description) {
-        console.log('Peer ' + connection.remoteAddress + ' disconnected.');
+        log.debug('Peer ' + connection.remoteAddress + ' disconnected.');
     });
 });
 
 
 
-console.log('Server starting at http://localhost:%d', port);
+log.trace('Server starting at http://localhost:%d', port);
