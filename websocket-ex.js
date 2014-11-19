@@ -8,7 +8,7 @@ var http = require('http');
 var util = require('util');
 var path = require('path');
 var LogManager = require('log-manager');
-LogManager.setLevel('trace');
+//LogManager.setLevel('trace');
 var log = LogManager.getLogger();
 
 //var serverId = 'p' + process.pid + '-t' + (+ new Date()) + '-r' + Math.random().toFixed(16).slice(2);
@@ -28,7 +28,7 @@ var server = http.createServer(function (req, res) {
   var socketId = socket.$socketId;
   log.debug('http socketId: ' + socketId);
 
-  var startTime = Date.now();
+  var startTime = new Date();
   var loc = req.url === '/' ? 'index.html' : req.url;
   if (loc === '/xhr/') {
     res.statusCode = 200;
@@ -53,7 +53,7 @@ var server = http.createServer(function (req, res) {
        socket.$clientId = data.cid = clientId;
 
       data.sid = socketId;
-      log.warn(JSON.stringify(data));
+      log.debug(JSON.stringify(data));
       res.end(JSON.stringify(data));
     });
     //req.pipe(res);
@@ -79,7 +79,7 @@ var server = http.createServer(function (req, res) {
       fs.createReadStream(fileName).pipe(res);
     }
     logger.call(log, '%s: %d ms\t%s %s', res.statusCode,
-        Date.now() - startTime, req.method, req.url);
+        new Date() - startTime, req.method, req.url);
   }); // fs.stat
 }); // http.createServer
 
@@ -92,9 +92,9 @@ server.listen(port, function () {
 var socketId = 0;
 server.on('connection', function (socket) {
   socket.$socketId = serverId + '-s' + (++socketId).toString(36);
-  log.warn('new socket: ' + socket.$socketId);
+  log.debug('new socket: ' + socket.$socketId);
   socket.on('disconnect', function () {
-    log.warn('disconnect: ' + socket.$socketId);
+    log.debug('disconnect: ' + socket.$socketId);
   });
 });
 
