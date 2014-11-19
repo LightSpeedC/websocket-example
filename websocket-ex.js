@@ -29,7 +29,7 @@ var server = http.createServer(function (req, res) {
   var type = mimeTypes[ext] || mimeTypes['txt'];
   var fileName = path.join(__dirname, loc);
   res.setHeader('Content-Type', type);
-  res.setHeader('Cache-Control', 'max-age=60');
+  res.setHeader('Cache-Control', 'max-age=10');
   fs.stat(fileName, function (err, stats) {
     if (err) {
       var logger = log.warn;
