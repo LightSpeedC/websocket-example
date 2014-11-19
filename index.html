@@ -3,42 +3,61 @@
 <meta http-equiv="X-UA-Compatible" content="IE=Edge, Chrome=1">
 <script>
 'use strict';
-  var _log = (function () {
+  (function (w, d) {
     'use strict';
     var cur = new Date();
     function delta() {
       var prev = cur; cur = new Date();
       return ('       ' + (cur - prev)).slice(-8) + ' msec. '; }
 
+    var slice = Array.prototype.slice;
     var msgs = [];
-    return function _log(msg) {
-      msgs.push(msg = delta() + msg);
+    function logger(msg, color) {
+      msgs.push([msg = delta() + msg, color]);
       if (typeof console !== 'undefined') console.log(msg);
       if (typeof $container === 'undefined') return;
       while (msg = msgs.shift()) {
-        var div = document.createElement('div');
-        div.appendChild(document.createTextNode(msg));
+        var div = d.createElement('div');
+        if (msg[1]) div.style.color = msg[1];
+        div.appendChild(d.createTextNode(msg[0]));
         $container.appendChild(div);
-      } };
-  })();
+      } }
+    var log   = function (msg) { logger('info - ' + slice.call(arguments).join(' '), null); };
+    log.trace = function (msg) { logger('trace- ' + slice.call(arguments).join(' '), '#00f'); };
+    log.debug = function (msg) { logger('debug- ' + slice.call(arguments).join(' '), '#088'); };
+    log.info  = log;
+    log.warn  = function (msg) { logger('warn - ' + slice.call(arguments).join(' '), '#aa0'); };
+    log.error = function (msg) { logger('error- ' + slice.call(arguments).join(' '), '#f00'); };
+    log.fatal = function (msg) { logger('fatal- ' + slice.call(arguments).join(' '), '#f0f'); };
+    w.log = log;
+  })(window, document);
 
-  _log('start');
+  log('start');
+  //log('typeof Array.prototype.slice =', typeof Array.prototype.slice);
+
+/*
+  log.trace('log.trace');
+  log.debug('log.debug');
+  log.info('log.info');
+  log.warn('log.warn');
+  log.error('log.error');
+  log.fatal('log.fatal');
+*/
 
    var clientId = 't' + (+ new Date()).toString(36) +
          '-r' + Number(Math.random().toFixed(16).slice(2)).toString(36);
-  _log('client id: ' + clientId);
+  log('client id:', clientId);
 </script>
 
 <h1>index.html インデックス</h1>
 
 <pre id="container"></pre>
 
-<!--script>_log('before salt.js');</script-->
+<!--script>log('before salt.js');</script-->
 <!--script src="salt.js"></script-->
 <script>
-'use strict';
-_log('before salt.js');
-var $ = (function (d) {
+log('before salt.js');
+(function (w, d) {
   'use strict';
 
   var methods = {
@@ -51,21 +70,22 @@ var $ = (function (d) {
 
   // https://github.com/james2doyle/saltjs
   // *! Salt.js DOM Selector Lib. By @james2doyle
-  return function $(selector) {
+  w.$ = $;
+  function $(selector) {
     var el = (d[methods[selector.slice(0, 1)]](selector.slice(1)));
-    return ((el.length < 2) ? el[0]: el); };
-})(document);
+    return ((el.length < 2) ? el[0]: el); }
+})(window, document);
 </script>
 
-<!--script>_log('before main script');</script-->
+<!--script>log('before main script');</script-->
 <script>
 'use strict';
-_log('before main script');
+log('before main script');
 (function (w) {
   'use strict';
   var $container = $('#container');
   w.$container = $container;
-  _log('#container loaded');
+  log('#container loaded');
 
 /*
   function dumpObj(obj, name) {
@@ -74,8 +94,8 @@ _log('before main script');
         var el = obj[i];
         if (typeof el === 'function') el = 'function';
         else el = JSON.stringify(el);
-        _log(name + '.' + i + ' = ' + el); }
-      catch (e) { } //_log(name + '.' + i + ' ' + e); }
+        log(name + '.' + i + ' = ' + el); }
+      catch (e) { } //log(name + '.' + i + ' ' + e); }
     }
   }
 */
@@ -89,87 +109,93 @@ _log('before main script');
       return null;
     } (); // xhr
     var que = [];
-    if (!xhr) return _log('xhr is null'), null;
-    _log('xhr.readyState: ' + xhr.readyState);
+    if (!xhr) return log.warn('xhr is null'), null;
+    var obj = {get:  function (url) { que.push(['GET',  url]); next(); },
+               post: function (url, data) { que.push(['POST', url, data]); next(); }};
     xhr.onreadystatechange = function() {
       if (xhr.readyState == 4) { // DONE
-        if (xhr.status == 200) cb(null, xhr.responseText);
-        else cb(xhr.status);
+        if (xhr.status == 200) cb.call(obj, null, xhr.responseText);
+        else cb.call(obj, xhr.status);
         next();
       }
     };
-    return {get:  function (url) { que.push(['GET',  url]); next(); },
-            post: function (url, data) { que.push(['POST', url, data]); next(); }};
+    return obj;
     function next() {
       if (xhr.readyState !== 4 && xhr.readyState !== 0) return;
       var el = que.shift();
-      if (el) {
-        var data = el[2];
-        if (typeof data !== 'string')
-          data = JSON.stringify(data);
-        xhr.open(el[0], el[1]);
-        xhr.send(data);
-      }
+      if (!el) return;
+      var data = el[2];
+      if (typeof data !== 'string')
+        data = JSON.stringify(data);
+      xhr.open(el[0], el[1], true);
+      xhr.send(data);
     }
   };
 
   var url = location.protocol + '//' + location.host + '/xhr/';
+  log.trace('xhr newXHR() start');
   var xhr = newXHR(function (err, data) {
     try {
-      _log('xhr res data: ' + data);
+      log.trace('xhr recv data:', data);
       var obj = JSON.parse(data);
       if (data.cid !== clientId) clientId = data.cid;
       switch (obj.msg) {
         case 'conn':
-          _log('xhr send 1');
-          xhr.post(url, {msg:"msg1", data: "xhr msg1", cid:clientId});
+          log.trace('xhr send 1');
+          this.post(url, {msg:"msg1", data: "xhr msg1", cid:clientId});
           break;
         case 'msg1':
-          _log('xhr send 2');
-          xhr.post(url, {msg:"msg2", data: "xhr msg2", cid:clientId});
+          log.trace('xhr send 2');
+          this.post(url, {msg:"msg2", data: "xhr msg2", cid:clientId});
+          break;
+        case 'msg2':
+          log.trace('xhr send 3');
+          this.post(url, {msg:"msg3", data: "xhr msg3", cid:clientId});
           break;
       }
     } catch (e) {}
-  });
+  }); // xhr
+  log.trace('xhr newXHR() complete');
   //xhr.setRequestHeader('Content-Type' , 'text/plain');
   xhr.post(url, {msg:"conn", data: "xhr msg", cid:clientId});
+  log.trace('xhr send conn');
 
   var wsurl = 'ws://' + location.host + '/ws/';
   try {
-    _log('new WebSocket() start');
+    log.debug('ws new WebSocket() start');
     var ws = new WebSocket(wsurl, 'echo-protocol');
-    _log('new WebSocket() complete');
+    log.debug('ws new WebSocket() complete');
     ws.onopen = function () {
-      _log('onopen!');
+      log.debug('ws onopen!');
       ws.send(JSON.stringify({msg:"conn", data: "ws msg", cid:clientId}));
+      log.debug('ws send conn');
     };
     ws.onmessage = function (event) {
-      _log('event.data: ' + event.data);
+      log.debug('ws recv data:', event.data);
       var data = JSON.parse(event.data);
       if (data.cid !== clientId) clientId = data.cid;
       switch (data.msg) {
         case 'conn':
-          _log('ws send 1');
+          log.debug('ws send 1');
           ws.send(JSON.stringify({msg:"msg1", data: "ws msg1", cid:clientId}));
           break;
         case 'msg1':
-          _log('ws send 2');
+          log.debug('ws send 2');
           ws.send(JSON.stringify({msg:"msg2", data: "ws msg2", cid:clientId}));
           break;
         case 'msg2':
-          _log('ws send 3');
+          log.debug('ws send 3');
           ws.send(JSON.stringify({msg:"msg3", data: "ws msg3", cid:clientId}));
           break;
       }
     };
-    ws.onclose = function () { _log('closed'); };
-    ws.onerror = function () { _log('error'); };
+    ws.onclose = function () { log.debug('ws closed'); };
+    ws.onerror = function () { log.error('ws error'); };
     // ws.close();
   } catch (e) {
-    _log('using WebSocket - Error: ' + e.message);
-    //document.write('<font color="red"><h3>Error: ' + e.message + '</h3></font>\n');
+    log.error('using WebSocket - Error:', e.message);
   }
 
-  _log('end of index.html');
+  log('end of index.html');
 })(window);
 </script>
