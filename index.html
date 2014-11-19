@@ -167,10 +167,10 @@
   function newXHR(url, cb) {
     _log('xhr url: ' + url);
     var xhr = function () {
-      try { return _log('xhr1'), new XMLHttpRequest(); } catch (e) {}
-      try { return _log('xhr2'), new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
-      try { return _log('xhr3'), new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
-      try { return _log('xhr4'), new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
+      try { return new XMLHttpRequest(); } catch (e) {}
+      try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
+      try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
+      try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
       return null;
     } (); // xhr
     var que = [];
