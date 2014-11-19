@@ -11,13 +11,12 @@
     var msgs = [];
     function _log(msg) {
       msgs.push(msg = delta() + msg);
-      if (typeof $container === 'undefined')
-        return console.log(msg);
+      if (typeof console !== 'undefined') console.log(msg);
+      if (typeof $container === 'undefined') return;
       while (msg = msgs.shift()) {
         var div = document.createElement('div');
         div.appendChild(document.createTextNode(msg));
         $container.appendChild(div);
-        //$container.innerHTML += msg + '\r\n';
       }
     }
     w._log = _log;
@@ -149,7 +148,9 @@
 <script>_log('before main script');</script>
 
 <script>
+(function (w) {
   var $container = $('#container');
+  w.$container = $container;
   _log('#container loaded');
 
   function dumpObj(obj, name) {
@@ -174,13 +175,13 @@
     } (); // xhr
     var que = [];
     if (!xhr) return _log('xhr is null'), null;
-    dumpObj(xhr, 'xhr');
+    //dumpObj(xhr, 'xhr');
     _log('xhr.readyState: ' + xhr.readyState);
     xhr.onreadystatechange = function() {
       if (xhr.readyState == 4) { // DONE
         if (xhr.status == 200) cb(null, xhr.responseText);
         else cb(xhr.status);
-        dumpObj(xhr, '$$xhr');
+        //dumpObj(xhr, '$$xhr');
         next();
       }
     };
@@ -229,10 +230,10 @@
     ws.onerror = function () { _log('error'); };
     // ws.close();
   } catch (e) {
-    //alert(e + '');
-    _log('Error: ' + e.message);
-    document.write('<font color="red"><h3>Error: ' + e.message + '</h3></font>\n');
+    _log('using WebSocket - Error: ' + e.message);
+    //document.write('<font color="red"><h3>Error: ' + e.message + '</h3></font>\n');
   }
 
   _log('end of index.html');
+})(window);
 </script>
