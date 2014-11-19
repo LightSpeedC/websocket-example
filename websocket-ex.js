@@ -55,6 +55,8 @@ var server = http.createServer(function (req, res) {
       data.sid = socketId;
       log.debug(JSON.stringify(data));
       res.end(JSON.stringify(data));
+      log.info('sid: %s %s: %d ms\t%s %s',
+        socketId, res.statusCode, new Date() - startTime, req.method, req.url);
     });
     //req.pipe(res);
     return;
@@ -78,7 +80,8 @@ var server = http.createServer(function (req, res) {
       res.statusCode = 200;
       fs.createReadStream(fileName).pipe(res);
     }
-    logger.call(log, '%s: %d ms\t%s %s', res.statusCode,
+    logger.call(log, 'sid: %s %s: %d ms\t%s %s',
+        socketId, res.statusCode,
         new Date() - startTime, req.method, req.url);
   }); // fs.stat
 }); // http.createServer
@@ -91,10 +94,11 @@ server.listen(port, function () {
 
 var socketId = 0;
 server.on('connection', function (socket) {
+  var startTime = new Date();
   socket.$socketId = serverId + '-s' + (++socketId).toString(36);
-  log.debug('new socket: ' + socket.$socketId);
-  socket.on('disconnect', function () {
-    log.debug('disconnect: ' + socket.$socketId);
+  log.info('sid: ' + socket.$socketId + ' new socket');
+  socket.on('close', function () {
+    log.info('sid: ' + socket.$socketId + ' socket close, ' + (new Date() - startTime) + ' msec');
   });
 });
 
