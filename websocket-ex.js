@@ -25,6 +25,13 @@ var server = http.createServer(function (req, res) {
   var socket = req.socket || req.connection;
   var startTime = Date.now();
   var loc = req.url === '/' ? 'index.html' : req.url;
+  if (loc === '/xhr/') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/json');
+    if (req.method === 'POST') req.pipe(res);
+    else res.end();
+    return;
+  }
   var ext = loc.slice(loc.lastIndexOf('.')).slice(1) || 'txt';
   var type = mimeTypes[ext] || mimeTypes['txt'];
   var fileName = path.join(__dirname, loc);
