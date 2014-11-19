@@ -8,9 +8,10 @@
     "websocket"
   ],
   "devDependencies": {
-    "websocket": ">=1.0.10"
+    "hotnode": "0.0.8"
   },
   "dependencies": {
+    "websocket": ">=1.0.10",
     "date-time-string": "0.0.4",
     "log-manager": "0.0.6"
   },
