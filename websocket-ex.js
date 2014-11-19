@@ -11,6 +11,10 @@ var LogManager = require('log-manager');
 LogManager.setLevel('trace');
 var log = LogManager.getLogger();
 
+//var serverId = 'p' + process.pid + '-t' + (+ new Date()) + '-r' + Math.random().toFixed(16).slice(2);
+var serverId = 'p' + process.pid.toString(36);
+var clients = {};
+
 // config.txt
 var config = eval('(' + fs.readFileSync('./config.txt') + ')');
 var port = config.port;
@@ -18,18 +22,41 @@ var port = config.port;
 // mime types
 var mimeTypes = eval('(' + fs.readFileSync('./mime-types.txt') + ')');
 
-var pid = process.pid;
-
 // server
 var server = http.createServer(function (req, res) {
   var socket = req.socket || req.connection;
+  var socketId = socket.$socketId;
+  log.debug('http socketId: ' + socketId);
+
   var startTime = Date.now();
   var loc = req.url === '/' ? 'index.html' : req.url;
   if (loc === '/xhr/') {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/json');
-    if (req.method === 'POST') req.pipe(res);
-    else res.end();
+    if (req.method !== 'POST')
+      return res.end(JSON.stringify({sid:socketId}));
+
+    var buffs = [], bufflen = 0;
+    req.on('readable', function () {
+      var buff = req.read();
+      if (!buff) return;
+      buffs.push(buff);
+      bufflen += buff.length;
+    });
+    req.on('end', function () {
+      var buff = Buffer.concat(buffs, bufflen);
+      var data = JSON.parse(buff.toString());
+
+       var clientId = socket.$clientId || data.cid;
+       clientId = clients[clientId] || clientId;
+       clients[clientId] = clients[data.cid] = clientId;
+       socket.$clientId = data.cid = clientId;
+
+      data.sid = socketId;
+      log.warn(JSON.stringify(data));
+      res.end(JSON.stringify(data));
+    });
+    //req.pipe(res);
     return;
   }
   var ext = loc.slice(loc.lastIndexOf('.')).slice(1) || 'txt';
@@ -62,9 +89,13 @@ server.listen(port, function () {
   log.info('Server running at http://localhost:%d', port);
 });
 
-var socketNo = 0;
+var socketId = 0;
 server.on('connection', function (socket) {
-  socket.$socketNo = pid + '#' + (++socketNo);
+  socket.$socketId = serverId + '-s' + (++socketId).toString(36);
+  log.warn('new socket: ' + socket.$socketId);
+  socket.on('disconnect', function () {
+    log.warn('disconnect: ' + socket.$socketId);
+  });
 });
 
 
@@ -87,7 +118,8 @@ function originIsAllowed(origin) {
 
 wsServer.on('request', function(request) {
     var socket = request.socket || request.connection;
-    log.debug('$socketNo: ' + socket.$socketNo);
+    var socketId = socket.$socketId;
+    log.debug('ws socketId: ' + socketId);
     if (!originIsAllowed(request.origin)) {
       // Make sure we only accept requests from an allowed origin
       request.reject();
@@ -100,7 +132,15 @@ wsServer.on('request', function(request) {
     connection.on('message', function(message) {
         if (message.type === 'utf8') {
             log.trace('Received Message: ' + message.utf8Data);
-            connection.sendUTF(message.utf8Data);
+            var data = JSON.parse(message.utf8Data);
+
+            var clientId = socket.$clientId || data.cid;
+            clientId = clients[clientId] || clientId;
+            clients[clientId] = clients[data.cid] = clientId;
+            socket.$clientId = data.cid = clientId;
+
+            data.sid = socketId;
+            connection.sendUTF(JSON.stringify(data));
         }
         else if (message.type === 'binary') {
             log.trace('Received Binary Message of ' + message.binaryData.length + ' bytes');
