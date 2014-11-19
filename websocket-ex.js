@@ -11,9 +11,16 @@ var LogManager = require('log-manager');
 //LogManager.setLevel('trace');
 var log = LogManager.getLogger();
 
-//var serverId = 'p' + process.pid + '-t' + (+ new Date()) + '-r' + Math.random().toFixed(16).slice(2);
+//var serverId = 'p' + process.pid.toString(36) +
+//  '-t' + (+ new Date()).toString(36) +
+//  '-r' + (+ Math.random().toFixed(16).slice(2)).toString(36);
 var serverId = 'p' + process.pid.toString(36);
-var clients = {};
+var clients = {}; // {cid,cno,sockets:[{sid,sno}]}
+
+function msecStr(msec) {
+  if (msec < 1000) return msec + ' msec';
+  return (msec / 1000).toFixed(3) + ' sec';
+}
 
 // config.txt
 var config = eval('(' + fs.readFileSync('./config.txt') + ')');
@@ -22,19 +29,38 @@ var port = config.port;
 // mime types
 var mimeTypes = eval('(' + fs.readFileSync('./mime-types.txt') + ')');
 
+var fileList = ['log.js', 'salt.js', 'websocket-main.js'];
+fileList = fileList.map(function (file) {
+  return {file: file, regexp: new RegExp('<script src=\"' + file + '\"></script>', 'g'),
+      script: '<script>\n' + fs.readFileSync(path.join(__dirname, file)) + '</script>\n'};
+});
+
+var htmlCache = {};
+var htmlList = ['/index.html'];
+htmlList = htmlList.map(function (file) {
+  var fullPath = path.join(__dirname, file);
+  var html = fs.readFileSync(fullPath).toString();
+  fileList.forEach(function (elem) {
+    html = html.replace(elem.regexp, elem.script);
+  });
+  return htmlCache[file] = {file: file, fullPath: fullPath, html: html};
+});
+
+//console.log(htmlCache['/index.html'].html);
+
 // server
 var server = http.createServer(function (req, res) {
   var socket = req.socket || req.connection;
-  var socketId = socket.$socketId;
+  var socketId = socket.$socket.sid;
   log.debug('http socketId: ' + socketId);
 
   var startTime = new Date();
-  var loc = req.url === '/' ? 'index.html' : req.url;
+  var loc = req.url === '/' ? '/index.html' : req.url;
   if (loc === '/xhr/') {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/json');
     if (req.method !== 'POST')
-      return res.end(JSON.stringify({sid:socketId}));
+      return res.end(JSON.stringify({sid: socketId}));
 
     var buffs = [], bufflen = 0;
     req.on('readable', function () {
@@ -47,25 +73,35 @@ var server = http.createServer(function (req, res) {
       var buff = Buffer.concat(buffs, bufflen);
       var data = JSON.parse(buff.toString());
 
-       var clientId = socket.$clientId || data.cid;
-       clientId = clients[clientId] || clientId;
-       clients[clientId] = clients[data.cid] = clientId;
-       socket.$clientId = data.cid = clientId;
+      var clientId = (clients[data.cid] && clients[data.cid].cid) || data.cid;
+      clients[clientId] = clients[data.cid] = {cid: clientId, cno: 0};
+      data.cid = clientId;
+      data.cno = clients[clientId].cno = Math.max(data.cno, clients[clientId].cno);
 
       data.sid = socketId;
+      data.sno = ++socket.$socket.sno;
       log.debug(JSON.stringify(data));
       res.end(JSON.stringify(data));
-      log.info('sid: %s %s: %d ms\t%s %s',
-        socketId, res.statusCode, new Date() - startTime, req.method, req.url);
+      log.info('sid: %s %s: %s\t%s %s',
+        socketId, res.statusCode, msecStr(new Date() - startTime), req.method, req.url);
     });
     //req.pipe(res);
     return;
-  }
+  } // /xhr/
+
   var ext = loc.slice(loc.lastIndexOf('.')).slice(1) || 'txt';
   var type = mimeTypes[ext] || mimeTypes['txt'];
   var fileName = path.join(__dirname, loc);
   res.setHeader('Content-Type', type);
   res.setHeader('Cache-Control', 'max-age=10');
+
+  log.warn('loc:', loc);
+  if (htmlCache[loc]) {
+    res.statusCode = 200;
+    res.end(htmlCache[loc].html);
+    return;
+  }
+
   fs.stat(fileName, function (err, stats) {
     if (err) {
       var logger = log.warn;
@@ -80,9 +116,9 @@ var server = http.createServer(function (req, res) {
       res.statusCode = 200;
       fs.createReadStream(fileName).pipe(res);
     }
-    logger.call(log, 'sid: %s %s: %d ms\t%s %s',
+    logger.call(log, 'sid: %s %s: %s\t%s %s',
         socketId, res.statusCode,
-        new Date() - startTime, req.method, req.url);
+        msecStr(new Date() - startTime), req.method, req.url);
   }); // fs.stat
 }); // http.createServer
 
@@ -95,10 +131,10 @@ server.listen(port, function () {
 var socketId = 0;
 server.on('connection', function (socket) {
   var startTime = new Date();
-  socket.$socketId = serverId + '-s' + (++socketId).toString(36);
-  log.info('sid: ' + socket.$socketId + ' new socket');
+  socket.$socket = {sid: serverId + '-s' + (++socketId).toString(36), sno: 0};
+  log.info('sid: ' + socket.$socket.sid + ' new socket');
   socket.on('close', function () {
-    log.info('sid: ' + socket.$socketId + ' socket close, ' + (new Date() - startTime) + ' msec');
+    log.info('sid: ' + socket.$socket.sid + ' socket close, ' + msecStr(new Date() - startTime));
   });
 });
 
@@ -122,7 +158,7 @@ function originIsAllowed(origin) {
 
 wsServer.on('request', function(request) {
     var socket = request.socket || request.connection;
-    var socketId = socket.$socketId;
+    var socketId = socket.$socket.sid;
     log.debug('ws socketId: ' + socketId);
     if (!originIsAllowed(request.origin)) {
       // Make sure we only accept requests from an allowed origin
@@ -139,11 +175,14 @@ wsServer.on('request', function(request) {
             var data = JSON.parse(message.utf8Data);
 
             var clientId = socket.$clientId || data.cid;
-            clientId = clients[clientId] || clientId;
-            clients[clientId] = clients[data.cid] = clientId;
+            clientId = (clients[clientId] && clients[clientId].cid) || clientId;
+            clients[clientId] = clients[data.cid] = {cid: clientId, cno: 0};
             socket.$clientId = data.cid = clientId;
 
+            data.cno = clients[clientId].cno = Math.max(data.cno, clients[clientId].cno);
+
             data.sid = socketId;
+            data.sno = ++socket.$socket.sno;
             connection.sendUTF(JSON.stringify(data));
         }
         else if (message.type === 'binary') {

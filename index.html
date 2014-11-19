@@ -1,48 +1,17 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=Edge, Chrome=1">
+
 <script>
-'use strict';
-  (function (w, d) {
-    'use strict';
-    var cur = new Date();
-    function delta() {
-      var prev = cur; cur = new Date();
-      return ('       ' + (cur - prev)).slice(-8) + ' msec. '; }
+  var startTime = new Date();
+</script>
 
-    var slice = Array.prototype.slice;
-    var msgs = [];
-    function logger(msg, color) {
-      msgs.push([msg = delta() + msg, color]);
-      if (typeof console !== 'undefined') console.log(msg);
-      if (typeof $container === 'undefined') return;
-      while (msg = msgs.shift()) {
-        var div = d.createElement('div');
-        if (msg[1]) div.style.color = msg[1];
-        div.appendChild(d.createTextNode(msg[0]));
-        $container.appendChild(div);
-      } }
-    var log   = function (msg) { logger('info - ' + slice.call(arguments).join(' '), null); };
-    log.trace = function (msg) { logger('trace- ' + slice.call(arguments).join(' '), '#00f'); };
-    log.debug = function (msg) { logger('debug- ' + slice.call(arguments).join(' '), '#088'); };
-    log.info  = log;
-    log.warn  = function (msg) { logger('warn - ' + slice.call(arguments).join(' '), '#f60'); };
-    log.error = function (msg) { logger('error- ' + slice.call(arguments).join(' '), '#f00'); };
-    log.fatal = function (msg) { logger('fatal- ' + slice.call(arguments).join(' '), '#f0f'); };
-    w.log = log;
-  })(window, document);
+<script src="log.js"></script>
 
-  log('start');
+<script>
+  log.level('trace');
+  log('start', (new Date() - startTime), 'msec');
   //log('typeof Array.prototype.slice =', typeof Array.prototype.slice);
-
-/*
-  log.trace('log.trace');
-  log.debug('log.debug');
-  log.info('log.info');
-  log.warn('log.warn');
-  log.error('log.error');
-  log.fatal('log.fatal');
-*/
 
   var clientId = 't' + (+ new Date()).toString(36) +
          '-r' + Number(Math.random().toFixed(16).slice(2)).toString(36);
@@ -52,161 +21,15 @@
 
 <h1>index.html インデックス</h1>
 
-<pre id="container"></pre>
+<div id="container"></div>
 
-<!--script>log('before salt.js');</script-->
-<!--script src="salt.js"></script-->
+<script>log('loading salt.js');</script>
+<script src="salt.js"></script>
+
 <script>
-log('before salt.js');
-(function (w, d) {
-  'use strict';
-
-  var methods = {
-      '#': 'getElementById',
-      '.': 'getElementsByClassName',
-      '@': 'getElementsByName',
-      '=': 'getElementsByTagName',
-      '*': 'querySelectorAll'
-  };
-
-  // https://github.com/james2doyle/saltjs
-  // *! Salt.js DOM Selector Lib. By @james2doyle
-  w.$ = $;
-  function $(selector) {
-    var el = (d[methods[selector.slice(0, 1)]](selector.slice(1)));
-    return ((el.length < 2) ? el[0]: el); }
-})(window, document);
-</script>
-
-<!--script>log('before main script');</script-->
-<script>
-'use strict';
-log('before main script');
-(function (w) {
-  'use strict';
-  var $container = $('#container');
-  w.$container = $container;
+  log.container($('#container'));
   log('#container loaded');
-
-/*
-  function dumpObj(obj, name) {
-    for (var i in obj) {
-      try {
-        var el = obj[i];
-        if (typeof el === 'function') el = 'function';
-        else el = JSON.stringify(el);
-        log(name + '.' + i + ' = ' + el); }
-      catch (e) { } //log(name + '.' + i + ' ' + e); }
-    }
-  }
-*/
-
-  function newXHR(cb) {
-    var xhr = typeof XMLHttpRequest === 'function' ? new XMLHttpRequest() :
-    function () {
-      try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
-      try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
-      try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
-      return null;
-    } (); // xhr
-    var que = [];
-    if (!xhr) return log.warn('xhr is null'), null;
-    var obj = {get:  function (url) { que.push(['GET',  url]); next(); },
-               post: function (url, data) { que.push(['POST', url, data]); next(); }};
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState == 4) { // DONE
-        if (xhr.status == 200) cb.call(obj, null, xhr.responseText);
-        else cb.call(obj, xhr.status);
-        next();
-      }
-    };
-    return obj;
-    function next() {
-      if (xhr.readyState !== 4 && xhr.readyState !== 0) return;
-      var el = que.shift();
-      if (!el) return;
-      var data = el[2];
-      if (typeof data !== 'string')
-        data = JSON.stringify(data);
-      xhr.open(el[0], el[1], true);
-      xhr.send(data);
-    }
-  };
-
-  var url = location.protocol + '//' + location.host + '/xhr/';
-  function xhrcb(err, data) {
-    try {
-      log.trace('xhr recv data:', data);
-      var data = JSON.parse(data);
-      if (data.cid && data.cid !== clientId) {
-        log.warn('xhr cid: ' + clientId + ' -> ' + data.cid);
-        clientId = data.cid;
-        clientNo = data.cno + 1;
-      }
-      switch (data.msg) {
-        case 'conn':
-          log.trace('xhr send 1');
-          this.post(url, {msg:"msg1", data: "xhr msg1", cid:clientId, cno:clientNo++});
-          break;
-        case 'msg1':
-          log.trace('xhr send 2');
-          this.post(url, {msg:"msg2", data: "xhr msg2", cid:clientId, cno:clientNo++});
-          break;
-        case 'msg2':
-          log.trace('xhr send 3');
-          this.post(url, {msg:"msg3", data: "xhr msg3", cid:clientId, cno:clientNo++});
-          break;
-      }
-    } catch (e) { log.error('xhr Error:', e.message); }
-  }
-  log.trace('xhr newXHR() start');
-  var xhr = newXHR(xhrcb); // xhr
-  log.trace('xhr newXHR() complete');
-  //xhr.setRequestHeader('Content-Type', 'text/plain');
-  xhr.post(url, {msg:"conn", data: "xhr msg", cid:clientId, cno:0});
-  log.trace('xhr send conn');
-
-  var wsurl = 'ws://' + location.host + '/ws/';
-  try {
-    log.debug('ws new WebSocket() start');
-    var ws = new WebSocket(wsurl, 'echo-protocol');
-    log.debug('ws new WebSocket() complete');
-    ws.onopen = function () {
-      log.debug('ws onopen!');
-      ws.send(JSON.stringify({msg:"conn", data: "ws msg", cid:clientId, cno:0}));
-      log.debug('ws send conn');
-    };
-    ws.onmessage = function (event) {
-      log.debug('ws recv data:', event.data);
-      var data = JSON.parse(event.data);
-      if (data.cid && data.cid !== clientId) {
-        log.warn('ws cid: ' + clientId + ' -> ' + data.cid);
-        clientId = data.cid;
-        clientNo = data.cno + 1;
-      }
-
-      switch (data.msg) {
-        case 'conn':
-          log.debug('ws send 1');
-          ws.send(JSON.stringify({msg:"msg1", data: "ws msg1", cid:clientId, cno:clientNo++}));
-          break;
-        case 'msg1':
-          log.debug('ws send 2');
-          ws.send(JSON.stringify({msg:"msg2", data: "ws msg2", cid:clientId, cno:clientNo++}));
-          break;
-        case 'msg2':
-          log.debug('ws send 3');
-          ws.send(JSON.stringify({msg:"msg3", data: "ws msg3", cid:clientId, cno:clientNo++}));
-          break;
-      }
-    };
-    ws.onclose = function () { log.debug('ws closed'); };
-    ws.onerror = function () { log.error('ws error'); };
-    // ws.close();
-  } catch (e) {
-    log.error('using WebSocket - Error:', e.message);
-  }
-
-  log('end of index.html');
-})(window);
 </script>
+
+<script>log('loading main script');</script>
+<script src="websocket-main.js"></script>
