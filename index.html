@@ -3,14 +3,14 @@
 <script>
   (function (w) {
     var cur = new Date();
-    function _msec() {
+    function delta() {
       var prev = cur; cur = new Date();
-      return ('     ' + (cur - prev)).slice(-6) + ' msec. ';
+      return ('       ' + (cur - prev)).slice(-8) + ' msec. ';
     }
 
     var msgs = [];
     function _log(msg) {
-      msgs.push(msg = _msec() + msg);
+      msgs.push(msg = delta() + msg);
       if (typeof $container === 'undefined')
         return console.log(msg);
       while (msg = msgs.shift()) {
@@ -49,8 +49,10 @@
   // *! Salt.js DOM Selector Lib. By @james2doyle
   w.$ = $;
   function $(selector) {
-    var el = (d[methods[selector.slice(0,1)]](selector.slice(1)));
+    var el = (d[methods[selector.slice(0, 1)]](selector.slice(1)));
     return ((el.length < 2) ? el[0]: el); }
+
+  try {
 
   // probably the most useful and allows $('#iddiv').find('.inside')
   // $().find()
@@ -139,6 +141,8 @@
   w.NodeList.prototype.last = function last() {
     // if there are many items, return the last
     return (this.length > 1) ? this[this.length - 1] : this; };
+
+  } catch (e) {}
 })(window, document);
 </script>
 

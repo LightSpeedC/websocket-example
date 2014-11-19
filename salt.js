@@ -16,6 +16,8 @@
     var el = (d[methods[selector.slice(0, 1)]](selector.slice(1)));
     return ((el.length < 2) ? el[0]: el); }
 
+  try {
+
   // probably the most useful and allows $('#iddiv').find('.inside')
   // $().find()
   w.Element.prototype.find = function find(selector) {
@@ -103,4 +105,6 @@
   w.NodeList.prototype.last = function last() {
     // if there are many items, return the last
     return (this.length > 1) ? this[this.length - 1] : this; };
+
+  } catch (e) {}
 })(window, document);
