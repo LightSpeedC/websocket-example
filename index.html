@@ -2,9 +2,9 @@
 <meta charset="utf-8">
 <script>
   (function (w) {
-    var cur = Date.now();
+    var cur = new Date();
     function _msec() {
-      var prev = cur; cur = Date.now();
+      var prev = cur; cur = new Date();
       return ('     ' + (cur - prev)).slice(-6) + ' msec. ';
     }
 
@@ -14,10 +14,10 @@
       if (typeof $container === 'undefined')
         return console.log(msg);
       while (msg = msgs.shift()) {
-        //var div = document.createElement('div');
-        //div.appendChild(document.createTextNode(msg));
-        //$container.appendChild(div);
-        $container.innerHTML += msg + '\n';
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(msg));
+        $container.appendChild(div);
+        //$container.innerHTML += msg + '\r\n';
       }
     }
     w._log = _log;
@@ -49,7 +49,7 @@
   // *! Salt.js DOM Selector Lib. By @james2doyle
   w.$ = $;
   function $(selector) {
-    var el = (d[methods[selector[0]]](selector.slice(1)));
+    var el = (d[methods[selector.slice(0,1)]](selector.slice(1)));
     return ((el.length < 2) ? el[0]: el); }
 
   // probably the most useful and allows $('#iddiv').find('.inside')
@@ -148,22 +148,35 @@
   var $container = $('#container');
   _log('#container loaded');
 
+  function dumpObj(obj, name) {
+    for (var i in obj) {
+      try {
+        var el = obj[i];
+        if (typeof el === 'function') el = 'function';
+        else el = JSON.stringify(el);
+        _log(name + '.' + i + ' = ' + el); }
+      catch (e) { } //_log(name + '.' + i + ' ' + e); }
+    }
+  }
+
   function newXHR(url, cb) {
     _log('xhr url: ' + url);
     var xhr = function () {
-      try { return new XMLHttpRequest(); } catch (e) {}
-      try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
-      try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
-      try { return new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
+      try { return _log('xhr1'), new XMLHttpRequest(); } catch (e) {}
+      try { return _log('xhr2'), new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
+      try { return _log('xhr3'), new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
+      try { return _log('xhr4'), new ActiveXObject("Microsoft.XMLHTTP"); } catch (e) {}
       return null;
     } (); // xhr
     var que = [];
-    _log('xhr.readyState: ' + xhr.readyState + ', xhr.status: ' + xhr.status);
+    if (!xhr) return _log('xhr is null'), null;
+    dumpObj(xhr, 'xhr');
+    _log('xhr.readyState: ' + xhr.readyState);
     xhr.onreadystatechange = function() {
       if (xhr.readyState == 4) { // DONE
         if (xhr.status == 200) cb(null, xhr.responseText);
         else cb(xhr.status);
-        xhr.readyState = 0;
+        dumpObj(xhr, '$$xhr');
         next();
       }
     };
@@ -171,9 +184,13 @@
     xhr.post = function (data) { que.push(['POST', url, data]); next(); };
     return xhr;
     function next() {
-      if (xhr.readyState !== 0) return;
+      if (xhr.readyState !== 4 && xhr.readyState !== 0) return;
       var el = que.shift();
-      if (el) { xhr.open(el[0], el[1]); xhr.send(el[2]); }
+      if (el) {
+        xhr.open(el[0], el[1]);
+        xhr.send(el[2]);
+        executing = true;
+      }
     }
   };
 
@@ -209,7 +226,8 @@
     // ws.close();
   } catch (e) {
     //alert(e + '');
-    document.write('<font color="red"><h3>' + e + '</h3></font>\n');
+    _log('Error: ' + e.message);
+    document.write('<font color="red"><h3>Error: ' + e.message + '</h3></font>\n');
   }
 
   _log('end of index.html');

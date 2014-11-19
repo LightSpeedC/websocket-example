@@ -13,7 +13,7 @@
   // *! Salt.js DOM Selector Lib. By @james2doyle
   w.$ = $;
   function $(selector) {
-    var el = (d[methods[selector[0]]](selector.slice(1)));
+    var el = (d[methods[selector.slice(0, 1)]](selector.slice(1)));
     return ((el.length < 2) ? el[0]: el); }
 
   // probably the most useful and allows $('#iddiv').find('.inside')
