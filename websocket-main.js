@@ -15,6 +15,12 @@
   }
 */
 
+  // reconnection timeout values and count
+  var reconnectionTimeoutValues =
+        [1, 2, 3, 4, 5, 10, 15, 20, 30, 60, 90, 120, 240, 300];
+  reconnectionTimeoutValues = reconnectionTimeoutValues.map(function (sec) { return sec * 1000; });
+  var reconnectionCount = 0;
+
   function newXHR(cb) {
     var xhr = typeof XMLHttpRequest === 'function' ? new XMLHttpRequest() :
     function () {
