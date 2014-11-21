@@ -11,9 +11,10 @@
     "hotnode": "0.0.8"
   },
   "dependencies": {
-    "websocket": ">=1.0.10",
+    "base-class-extend": "0.0.9",
     "date-time-string": "0.0.4",
-    "log-manager": "0.0.6"
+    "log-manager": "0.0.6",
+    "websocket": ">=1.0.10"
   },
   "homepage": "https://github.com/LightSpeedC/websocket-example",
   "repository": {
