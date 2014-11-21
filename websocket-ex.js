@@ -23,22 +23,25 @@ function msecStr(msec) {
 }
 
 // config.txt
-var config = eval('(' + fs.readFileSync('./config.txt') + ')');
+var configDir = path.join(__dirname, 'config');
+var config = eval('(' + fs.readFileSync(path.join(configDir, 'config.txt')) + ')');
 var port = config.port;
+var documentRoot = path.join(configDir, config.documentRoot);
+log.warn('documentRoot:', documentRoot);
 
 // mime types
-var mimeTypes = eval('(' + fs.readFileSync('./mime-types.txt') + ')');
+var mimeTypes = eval('(' + fs.readFileSync(path.join(configDir, 'mime-types.txt')) + ')');
 
-var fileList = ['log.js', 'salt.js', 'websocket-main.js'];
+var fileList = ['/js/log.js', '/js/salt.js', '/js/websocket-main.js'];
 fileList = fileList.map(function (file) {
   return {file: file, regexp: new RegExp('<script src=\"' + file + '\"></script>', 'g'),
-      script: '<script>\n' + fs.readFileSync(path.join(__dirname, file)) + '</script>\n'};
+      script: '<script>\n' + fs.readFileSync(path.join(documentRoot, file)) + '</script>\n'};
 });
 
 var htmlCache = {};
 var htmlList = ['/index.html'];
 htmlList = htmlList.map(function (file) {
-  var fullPath = path.join(__dirname, file);
+  var fullPath = path.join(documentRoot, file);
   var html = fs.readFileSync(fullPath).toString();
   fileList.forEach(function (elem) {
     html = html.replace(elem.regexp, elem.script);
